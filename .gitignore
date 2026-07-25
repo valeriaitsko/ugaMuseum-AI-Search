@@ -1,0 +1,17 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+
+# Derived from enriched.json; rebuilt automatically when the text changes.
+app/data/vectors.npz
+
+# app/data/specimens.json IS committed on purpose -- it's the flattened snapshot
+# built from the Specify DB by app/build_snapshot.py, and it shapes what visitors
+# find, so it should show up in diffs like any other reviewable artifact. Rebuild
+# it with `python -m app.build_snapshot`, don't regenerate at deploy time.
+app/data/specimens.json.tmp
+
+# app/data/enriched.json IS committed on purpose -- it costs an API call per
+# specimen to regenerate, and it shapes what visitors find, so it should show
+# up in diffs like any other reviewable artifact.

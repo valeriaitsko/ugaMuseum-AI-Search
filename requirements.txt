@@ -1,0 +1,12 @@
+anthropic>=0.116
+fastapi>=0.115
+uvicorn>=0.32
+python-dotenv>=1.0
+pydantic>=2.9
+numpy>=1.26
+requests>=2.32          # Specify7 sync (app/specify_sync.py)
+pymysql>=1.1            # Specify DB snapshot (app/build_snapshot.py)
+
+# Semantic search. Pulls in torch (~2.5 GB) -- the app runs without it and
+# falls back to lexical matching over the enriched text.
+sentence-transformers>=3.0

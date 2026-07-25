@@ -1,0 +1,502 @@
+[
+  {
+    "id": 460,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005159",
+    "kingdom": "Plantae",
+    "family": "Loasaceae",
+    "genus": "Mentzelia",
+    "species": "Micrantha",
+    "locality": "N/a"
+  },
+  {
+    "id": 461,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005211",
+    "kingdom": "Plantae",
+    "family": "Loasaceae",
+    "genus": "Mentzelia",
+    "species": "Veatchiana",
+    "locality": "300 yards W of Mount Palm Springs Campground Parking Area, 2 miles W of S2 Road, Anza-Borrego Desert State Park."
+  },
+  {
+    "id": 462,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005213",
+    "kingdom": "Plantae",
+    "family": "Loasaceae",
+    "genus": "Mentzelia",
+    "species": "Veatchiana",
+    "locality": "West on San Marcos Pass Road, right on Figueroa Mountain Road, north, 3 miles past Figueroa Mountain campground across road from Ranger Peak."
+  },
+  {
+    "id": 463,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005202",
+    "kingdom": "Plantae",
+    "family": "Loasaceae",
+    "genus": "Mentzelia",
+    "species": "Veatchiana",
+    "locality": "8.2 miles north of Mojave on California Highway 6, 50 yards west of the road."
+  },
+  {
+    "id": 464,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005163",
+    "kingdom": "Plantae",
+    "family": "Loasaceae",
+    "genus": "Mentzelia",
+    "species": "Micrantha",
+    "locality": "0.4 miles east of Gibraltar Road on Camino Cielo Road."
+  },
+  {
+    "id": 465,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005209",
+    "kingdom": "Plantae",
+    "family": "Loasaceae",
+    "genus": "Mentzelia",
+    "species": "Veatchiana",
+    "locality": "U.S. highway 6; 2.4 miles north of Little Lake."
+  },
+  {
+    "id": 466,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005204",
+    "kingdom": "Plantae",
+    "family": "Loasaceae",
+    "genus": "Mentzelia",
+    "species": "Veatchiana",
+    "locality": "East side of Hwy 33, 5 miles from its junction with Hwy 166."
+  },
+  {
+    "id": 467,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005183",
+    "kingdom": "Plantae",
+    "family": "Loasaceae",
+    "genus": "Mentzelia",
+    "species": "Pectinata",
+    "locality": "On east side of Happy Canyon Road, 14.0 miles north of the junction of Armour Canyon Road and U.S. 154"
+  },
+  {
+    "id": 468,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005193",
+    "kingdom": "Plantae",
+    "family": "Loasaceae",
+    "genus": "Mentzelia",
+    "species": "Veatchiana",
+    "locality": "Lower Sonoran Zone. Eastern end of Lovejoy Buttes, Antelope Valley."
+  },
+  {
+    "id": 469,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005218",
+    "kingdom": "Plantae",
+    "family": "Loasaceae",
+    "genus": "Petalonyx",
+    "species": "Thurberi",
+    "locality": "5 1/2 miles S. of Curtis Palms-near road."
+  },
+  {
+    "id": 470,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005223",
+    "kingdom": "Plantae",
+    "family": "Loasaceae",
+    "genus": "Petalonyx",
+    "species": "Thurberi",
+    "locality": "State Highway 74, 4.1 miles S of Palm Desert."
+  },
+  {
+    "id": 471,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005221",
+    "kingdom": "Plantae",
+    "family": "Loasaceae",
+    "genus": "Petalonyx",
+    "species": "Thurberi",
+    "locality": "15 km north of Trona, off highway 178 in the Mojave desert."
+  },
+  {
+    "id": 472,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005171",
+    "kingdom": "Plantae",
+    "family": "Loasaceae",
+    "genus": "Mentzelia",
+    "species": "Nitens",
+    "locality": "1.3 miles E of U.S. 6 at a point 0.2 miles N of Shell Station and 3.1 miles S of Jawbone Canyon Rd. junction; Western edge of Mojave Desert."
+  },
+  {
+    "id": 473,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005226",
+    "kingdom": "Plantae",
+    "family": "Loasaceae",
+    "genus": "Petalonyx",
+    "species": "Thurberi",
+    "locality": "5 miles before Palm Springs, Calif."
+  },
+  {
+    "id": 474,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005361",
+    "kingdom": "Plantae",
+    "family": "Malvaceae",
+    "genus": "Malacothamnus",
+    "species": "Fremontii",
+    "locality": "About 18 miles south of 14-mile house, Mines road, Livermore hills."
+  },
+  {
+    "id": 475,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005354",
+    "kingdom": "Plantae",
+    "family": "Malvaceae",
+    "genus": "Horsfordia",
+    "species": "Nnewberryi",
+    "locality": "Hellhole Canyon, 3 miles west of Borrego Springs, Borrego Valley."
+  },
+  {
+    "id": 476,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005368",
+    "kingdom": "Plantae",
+    "family": "Malvaceae",
+    "genus": "Malacothamnus",
+    "species": "Nuttallii",
+    "locality": "About 1/2 mi. west of the mouth of Horse Canyon, northeast Lake Cachuma."
+  },
+  {
+    "id": 477,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005370",
+    "kingdom": "Plantae",
+    "family": "Malvaceae",
+    "genus": "Malacothamnus",
+    "species": "Nuttallii",
+    "locality": "1/2 mile west of Hollister on the south side of Patterson Ave. along the bike trail."
+  },
+  {
+    "id": 478,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005380",
+    "kingdom": "Plantae",
+    "family": "Malvaceae",
+    "genus": "Malacothamnus",
+    "species": "Fasciculatus",
+    "locality": "Lone Pine Canyon, San Gabriel Mts."
+  },
+  {
+    "id": 479,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005388",
+    "kingdom": "Plantae",
+    "family": "Malvaceae",
+    "genus": "Malacothamnus",
+    "species": "Nuttallii",
+    "locality": "Southern foothills of the San Rafael Range, Sedgwick Reserve, upper slope, lower vernal valley."
+  },
+  {
+    "id": 480,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005385",
+    "kingdom": "Plantae",
+    "family": "Malvaceae",
+    "genus": "Malacothamnus",
+    "species": "Nuttallii",
+    "locality": "Summit of Casitas Pass on Hwy 150."
+  },
+  {
+    "id": 481,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005387",
+    "kingdom": "Plantae",
+    "family": "Malvaceae",
+    "genus": "Malacothamnus",
+    "species": "Fasciculatus",
+    "locality": "Western Transverse Ranges; Triunfo Pass Quad., SE1/4 S33, T1N, R21W (Ventura Co.) and Point Dume Quad., S4/3/2, T1S, R21W (LA Co.); San Bernardino Base Meridian; Santa Monica Mountains; El Conejo."
+  },
+  {
+    "id": 482,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005393",
+    "kingdom": "Plantae",
+    "family": "Malvaceae",
+    "genus": "Malacothamnus",
+    "species": "Fasciculatus",
+    "locality": "Golf Links, La Jolla."
+  },
+  {
+    "id": 483,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005399",
+    "kingdom": "Plantae",
+    "family": "Malvaceae",
+    "genus": "Malacothamnus",
+    "species": "Jonesii",
+    "locality": "Santa Rosa Rd, Atascadero."
+  },
+  {
+    "id": 484,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005400",
+    "kingdom": "Plantae",
+    "family": "Malvaceae",
+    "genus": "Malacothamnus",
+    "species": "Orbiculatus",
+    "locality": "At junction of Mill Potrero Rd. and Mt. Pinos road."
+  },
+  {
+    "id": 485,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005406",
+    "kingdom": "Plantae",
+    "family": "Malvaceae",
+    "genus": "Malacothamnus",
+    "species": "Orbiculatus",
+    "locality": "Western San Joaquin Valley, along CA Hwy 33, miles northwest of its junction with Lokern Road; 30 miles of Missouri Triangle; Chico Martinez Creek."
+  },
+  {
+    "id": 486,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005419",
+    "kingdom": "Plantae",
+    "family": "Malvaceae",
+    "genus": "Malva",
+    "species": "Assurgentiflora",
+    "locality": "0.3 mi. west of Solana Beach."
+  },
+  {
+    "id": 487,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005408",
+    "kingdom": "Plantae",
+    "family": "Malvaceae",
+    "genus": "Malacothamnus",
+    "species": "Lucianus",
+    "locality": "Three miles from Escondido Campground on road to Arroyo Seco Camp."
+  },
+  {
+    "id": 488,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005674",
+    "kingdom": "Plantae",
+    "family": "Melanthiaceae",
+    "genus": "Toxicoscordion",
+    "species": "Fremontii",
+    "locality": "Islay Canyon, behind Lyndal's house (field station manager's house), Santa Cruz Island."
+  },
+  {
+    "id": 489,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005700",
+    "kingdom": "Plantae",
+    "family": "Melanthiaceae",
+    "genus": "Toxicoscordion",
+    "species": "Fremontii",
+    "locality": "0.4 mile east of State Highway 1 on Plaskett Ridge Road, Santa Lucia Mountains."
+  },
+  {
+    "id": 490,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005695",
+    "kingdom": "Plantae",
+    "family": "Melanthiaceae",
+    "genus": "Toxicoscordion",
+    "species": "Fremontii",
+    "locality": "12 miles N of Ojai, western Transverse Ranges T5N, R23W, S. 1, 2, & 3, Wheeler Springs Quadrangle; 34.5416667 -119.2666667"
+  },
+  {
+    "id": 491,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005696",
+    "kingdom": "Plantae",
+    "family": "Melanthiaceae",
+    "genus": "Toxicoscordion",
+    "species": "Fremontii",
+    "locality": "Behind south end of Dennison Park about 150 yds. - 8.5 miles east on Hwy 150 from where Hwy 150 meets Hwy 33 in Ojai."
+  },
+  {
+    "id": 492,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005732",
+    "kingdom": "Plantae",
+    "family": "Melanthiaceae",
+    "genus": "Trillium",
+    "species": "Chloropetalum",
+    "locality": "On Land of Neary Enterprises, 6 miles W of U.S. Highway 101, Los Altos Hills."
+  },
+  {
+    "id": 493,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005727",
+    "kingdom": "Plantae",
+    "family": "Melanthiaceae",
+    "genus": "Trillium",
+    "species": "Angustipetalum",
+    "locality": "1 mile N. of Hwy. 1, Yridises Ranch, 15 mi. E. of Lompoc."
+  },
+  {
+    "id": 494,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005805",
+    "kingdom": "Plantae",
+    "family": "Montiaceae",
+    "genus": "Calandrinia",
+    "species": "Ciliata",
+    "locality": "Purissima Hills, 0.7 miles (via a dirt road) from State Hwy 1, 0.6 miles south of the Hwy's intersection with the Los Alamos-Casmalia road."
+  },
+  {
+    "id": 495,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005733",
+    "kingdom": "Plantae",
+    "family": "Melanthiaceae",
+    "genus": "Trillium",
+    "species": "Chloropetalum",
+    "locality": "Jasper Ridge, 3 miles SW of Stanford Campus, between Santa Clara Valley and main front of Santa Cruz Mountains."
+  },
+  {
+    "id": 496,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005743",
+    "kingdom": "Plantae",
+    "family": "Melanthiaceae",
+    "genus": "Trillium",
+    "species": "ovatum",
+    "locality": "2 mi. south of Old Briceland Bridge along Eel River, 500 yds. from shore."
+  },
+  {
+    "id": 497,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005865",
+    "kingdom": "Plantae",
+    "family": "Montiaceae",
+    "genus": "Calyptridium",
+    "species": "monandrum",
+    "locality": "Rucker Road, 1 mi. N. of Hwy 1 going toward Pruisima Hills"
+  },
+  {
+    "id": 498,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005755",
+    "kingdom": "Plantae",
+    "family": "Melanthiaceae",
+    "genus": "Veratrum",
+    "species": "californicum",
+    "locality": "Just below Upper Iris Meadows, Mt. Pinos."
+  },
+  {
+    "id": 499,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005915",
+    "kingdom": "Plantae",
+    "family": "Montiaceae",
+    "genus": "Calyptridium",
+    "species": "umbellatum",
+    "locality": "25 miles up Cuddy Valley Road from Lake of the Woods; on top of Mt. Pinos"
+  },
+  {
+    "id": 500,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005847",
+    "kingdom": "Plantae",
+    "family": "Montiaceae",
+    "genus": "Calandrinia",
+    "species": "Ciliata",
+    "locality": "About 0.2 miles NE of the intersection of Mission Ridge Road and Las Tunas Road."
+  },
+  {
+    "id": 501,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005768",
+    "kingdom": "Plantae",
+    "family": "Melanthiaceae",
+    "genus": "Xerophyllum",
+    "species": "tenax",
+    "locality": "Along U.S. Highway 199, 3.2 miles north of Gasquet."
+  },
+  {
+    "id": 502,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005781",
+    "kingdom": "Plantae",
+    "family": "Montiaceae",
+    "genus": "Calandrinia",
+    "species": "Ciliata",
+    "locality": "McGovern Grade summit, 1 mile north of intersection with Meng Road, east of Cholame."
+  },
+  {
+    "id": 503,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005926",
+    "kingdom": "Plantae",
+    "family": "Montiaceae",
+    "genus": "Calyptridium",
+    "species": "umbellatum",
+    "locality": "12 mi. north of Dunsmuir, Route 99; 1/4 mi. east of highway. Foothills below Mt. Shasta."
+  },
+  {
+    "id": 504,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005850",
+    "kingdom": "Plantae",
+    "family": "Montiaceae",
+    "genus": "Calandrinia",
+    "species": "Ciliata",
+    "locality": "Near Storke Road and Hollister Ave."
+  },
+  {
+    "id": 505,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005928",
+    "kingdom": "Plantae",
+    "family": "Montiaceae",
+    "genus": "Calyptridium",
+    "species": "umbellatum",
+    "locality": "At end of pavement on Mt. Pinos road; 1.8 miles (via dirt road) below summit of Mt. Pinos."
+  },
+  {
+    "id": 506,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005828",
+    "kingdom": "Plantae",
+    "family": "Montiaceae",
+    "genus": "Calandrinia",
+    "species": "Ciliata",
+    "locality": "Isla Vista"
+  },
+  {
+    "id": 507,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005834",
+    "kingdom": "Plantae",
+    "family": "Montiaceae",
+    "genus": "Calandrinia",
+    "species": "Ciliata",
+    "locality": "Willow Canyon Rd., appx. 1.5 miles from ocean, Santa Cruz Island."
+  },
+  {
+    "id": 508,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005952",
+    "kingdom": "Plantae",
+    "family": "Montiaceae",
+    "genus": "Claytonia",
+    "species": "parviflora",
+    "locality": "Sequoia National Park, along Generals Hwy, Ash Mnt site."
+  },
+  {
+    "id": 509,
+    "catalogNumber": null,
+    "altCatalogNumber": "UCSB005903",
+    "kingdom": "Plantae",
+    "family": "Montiaceae",
+    "genus": "Calyptridium",
+    "species": "umbellatum",
+    "locality": "Summit of Mt. Pinos."
+  }
+]
