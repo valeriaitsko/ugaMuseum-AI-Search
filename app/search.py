@@ -2,6 +2,7 @@
 
 import json
 import re
+from collections import Counter
 from pathlib import Path
 
 from app import embeddings
@@ -62,9 +63,42 @@ class SearchIndex:
         self.semantic = embeddings.available()
         self.vectors = embeddings.build_index(self.search_texts) if self.semantic else None
 
+        # Collection-wide facet counts, computed once. Suggestion generation reads
+        # these to answer "what else is in the collection near this result?" without
+        # rescanning every request. See app/suggest.py.
+        self.facets = self._build_facets()
+
     @property
     def enriched(self) -> bool:
         return bool(self.enrichments)
+
+    def category_of(self, specimen: dict) -> str | None:
+        """Public accessor for a specimen's enrichment category (may be None).
+
+        Suggestion generation lives in a sibling module and needs this without
+        reaching into the private helper.
+        """
+        return self._category(specimen)
+
+    def _build_facets(self) -> dict[str, Counter]:
+        facets: dict[str, Counter] = {
+            "category": Counter(),
+            "family": Counter(),
+            "genus": Counter(),
+            "species": Counter(),
+            "locality": Counter(),
+        }
+        for specimen in self.specimens:
+            category = self._category(specimen)
+            if category:
+                facets["category"][category] += 1
+            for field in ("family", "genus", "species", "locality"):
+                value = specimen.get(field)
+                # "N/a" is the herbarium snapshot's null sentinel for locality and
+                # sometimes species; it is not a facet anyone would want suggested.
+                if value and str(value).strip().lower() not in ("", "n/a", "na"):
+                    facets[field][str(value).strip()] += 1
+        return facets
 
     def _load_enrichments(self) -> dict[str, dict]:
         if not ENRICHED_PATH.exists():
