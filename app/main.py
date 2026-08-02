@@ -1,4 +1,5 @@
 import logging
+from typing import Literal
 
 import anthropic
 from fastapi import FastAPI, HTTPException
@@ -7,6 +8,7 @@ from pydantic import BaseModel
 
 from app.ai import SearchFilters, fallback_filters, parse_search_query
 from app.search import SearchIndex
+from app.suggest import build_suggestions
 
 log = logging.getLogger(__name__)
 
@@ -32,6 +34,10 @@ index = SearchIndex()
 
 class SearchRequest(BaseModel):
     query: str
+    # Drives the "You might also be interested in" suggestions: students get
+    # broader sibling groups, researchers get precise pivots on the filters they
+    # used. Defaults to "student" to match the frontend's own default.
+    audience: Literal["student", "researcher"] = "student"
 
 
 @app.get("/")
@@ -53,10 +59,15 @@ def ai_search(req: SearchRequest):
     filters, degraded_reason = _parse_or_degrade(query)
     results = index.search(filters)
 
+    # Grounded, validated, and computed from local facets -- no extra Claude call,
+    # and it still works when the parse degraded (it reads results, not filters).
+    suggestions = build_suggestions(index, filters, results, req.audience, query)
+
     return {
         "original_query": query,
         "ai_parsed_query": filters.model_dump(),
         "results": results,
+        "suggestions": suggestions,
         # True when Claude was unreachable and the filters are empty. The frontend
         # should say so -- a visitor who searched "collected by Emily Davis" and
         # silently got unfiltered results deserves to know why.
