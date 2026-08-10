@@ -106,17 +106,26 @@ class SearchIndex:
         return json.loads(ENRICHED_PATH.read_text(encoding="utf-8"))
 
     def _search_text(self, specimen: dict) -> str:
-        """The enriched paragraph if we have one; otherwise the bare catalog row."""
+        """The enriched paragraph if we have one; otherwise the bare catalog row.
+
+        'order' is excluded: it's a Latin word no visitor types into the semantic
+        box (it's reached through the deterministic order filter instead), and
+        keeping it out leaves the embedded text -- and thus the cached vectors --
+        byte-identical to before the field existed, so adding order forces no
+        re-encode.
+        """
         enrichment = self.enrichments.get(str(specimen["id"]))
         if enrichment:
             return enrichment["search_text"]
-        return " ".join(str(v) for k, v in specimen.items() if k != "id" and v)
+        return " ".join(str(v) for k, v in specimen.items() if k not in ("id", "order") and v)
 
     def _category(self, specimen: dict) -> str | None:
         enrichment = self.enrichments.get(str(specimen["id"]))
         return enrichment["category"] if enrichment else None
 
-    def _passes_hard_filters(self, specimen: dict, filters: SearchFilters) -> bool:
+    def _passes_hard_filters(
+        self, specimen: dict, filters: SearchFilters, orders: list[str] | None = None
+    ) -> bool:
         """Categorical filters exclude rather than down-rank.
 
         Asking for minerals and getting a wolf at rank 4 is worse than getting
@@ -132,6 +141,15 @@ class SearchIndex:
             # field we never computed.
             if category is not None and category != filters.category:
                 return False
+
+        # Order is a hard filter like kingdom, but sourced from the deterministic
+        # common-name detector (app/orders.py), not from Claude. `orders` is a
+        # list because "beetles and flies" yields two; a specimen passes if its
+        # order is any of them. A record with no order (not identified that far)
+        # is excluded when an order is requested -- "beetles" should return
+        # confirmed beetles, and coverage is ~99% anyway.
+        if orders and specimen.get("order") not in orders:
+            return False
 
         return True
 
@@ -176,8 +194,10 @@ class SearchIndex:
                 hits += 1
         return LEXICAL_WEIGHT * hits
 
-    def search(self, filters: SearchFilters, limit: int = 10) -> list[dict]:
-        candidates = [s for s in self.specimens if self._passes_hard_filters(s, filters)]
+    def search(
+        self, filters: SearchFilters, orders: list[str] | None = None, limit: int = 10
+    ) -> list[dict]:
+        candidates = [s for s in self.specimens if self._passes_hard_filters(s, filters, orders)]
         if not candidates:
             return []
 

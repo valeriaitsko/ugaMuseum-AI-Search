@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from app.ai import SearchFilters, fallback_filters, parse_search_query
+from app.orders import detect_orders
 from app.search import SearchIndex
 from app.suggest import build_suggestions
 
@@ -57,7 +58,13 @@ def ai_search(req: SearchRequest):
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
 
     filters, degraded_reason = _parse_or_degrade(query)
-    results = index.search(filters)
+
+    # Detected from the raw query by a local dictionary, not Claude -- so "beetles"
+    # narrows to Coleoptera even in degraded mode / with no credits. Runs on the
+    # original query, not filters.semantic_query, which Claude may have reworded.
+    orders = detect_orders(query)
+
+    results = index.search(filters, orders=orders)
 
     # Grounded, validated, and computed from local facets -- no extra Claude call,
     # and it still works when the parse degraded (it reads results, not filters).
@@ -66,6 +73,7 @@ def ai_search(req: SearchRequest):
     return {
         "original_query": query,
         "ai_parsed_query": filters.model_dump(),
+        "detected_orders": orders,
         "results": results,
         "suggestions": suggestions,
         # True when Claude was unreachable and the filters are empty. The frontend

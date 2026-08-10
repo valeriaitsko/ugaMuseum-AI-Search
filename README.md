@@ -203,6 +203,28 @@ kingdom missing from both places can never be produced as a filter, silently
 making those specimens unreachable by kingdom. It's the most likely quiet
 breakage when you switch off demo data.
 
+## Common-name search for insect orders (no AI)
+
+Insect records carry a Latin order (`Coleoptera`, `Diptera`, `Lepidoptera`), but
+visitors type "beetles", "flies", "moths". Because orders are a *closed, tiny*
+set (~23 here, ever), the bridge is a hand-written table in `app/orders.py`, not
+enrichment — species common names ("monarch", "hoverfly") are the open-ended,
+tens-of-thousands set that still needs AI.
+
+`detect_orders()` scans the raw query for common (or Latin) order words and
+returns the matching orders; `search()` applies them as a hard filter. It runs on
+the original query, **not** through Claude, so:
+
+- it works with **no credits** and even when Claude is unreachable;
+- `"beetles"`, `"moths from Georgia"`, and the Latin `"Coleoptera"` all narrow
+  correctly; the response echoes `detected_orders`.
+
+`build_snapshot.py` reads the order (taxon rank 100) into each record — 99% of the
+insects have one. The field is deliberately excluded from the embedded text, so
+adding it to 31k records forced no re-encode. The table is collection-specific;
+review the rare singleton orders (a fish, a salamander, some molluscs turned up in
+`Animalia`) if the collection changes.
+
 ## Evaluation
 
 ```bash
@@ -240,7 +262,9 @@ choice is currently justified by reasoning about task shape, not by evidence.
 | File | |
 |---|---|
 | `app/specimens.py` | Demo records, controlled vocabulary, `load_specimens()` |
-| `app/specify_sync.py` | Pull real records from Specify7 → `data/specimens.json` |
+| `app/specify_sync.py` | Pull real records from Specify7 REST API → `data/specimens.json` |
+| `app/build_snapshot.py` | Build `data/specimens.json` from the Specify DB directly (the path in use) |
+| `app/orders.py` | Latin-order ↔ common-name table + `detect_orders()` (no AI) |
 | `app/ai.py` | Claude client, Pydantic schemas, query parsing, enrichment |
 | `app/enrich.py` | Offline enrichment pass (`python -m app.enrich`) |
 | `app/embeddings.py` | Encode + cache vectors, cosine similarity |
