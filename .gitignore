@@ -15,3 +15,7 @@ app/data/specimens.json.tmp
 # app/data/enriched.json IS committed on purpose -- it costs an API call per
 # specimen to regenerate, and it shapes what visitors find, so it should show
 # up in diffs like any other reviewable artifact.
+
+# Per-model comparison samples (python -m app.enrich --model X --out ...). Scratch
+# quality checks, not production data -- keep them out of the repo.
+app/data/enriched-*.json

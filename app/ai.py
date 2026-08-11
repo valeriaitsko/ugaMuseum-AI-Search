@@ -24,6 +24,42 @@ load_dotenv()
 ENRICH_MODEL = "claude-opus-4-8"
 QUERY_MODEL = "claude-haiku-4-5"
 
+# List price (USD) per million tokens, as (input, output). Goes stale silently if
+# Anthropic changes rates -- it's a list-price estimate for these tokens, not a
+# bill; the console is the record. An unknown model prices to 0 rather than guess.
+MODEL_PRICES: dict[str, tuple[float, float]] = {
+    "claude-opus-4-8": (5.0, 25.0),
+    "claude-sonnet-5": (3.0, 15.0),
+    "claude-haiku-4-5": (1.0, 5.0),
+}
+
+
+def usage_cost(usage, model: str) -> dict:
+    """A per-call cost record from an Anthropic usage object, at list price.
+
+    `input_tokens` is the uncached input; cache writes bill ~1.25x and reads ~0.1x
+    the input rate. The query parser doesn't cache (short prompt), so those are
+    normally 0 -- the formula just stays correct if caching is added later.
+    """
+    price_in, price_out = MODEL_PRICES.get(model, (0.0, 0.0))
+    cache_write = getattr(usage, "cache_creation_input_tokens", 0) or 0
+    cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
+    cost_usd = (
+        usage.input_tokens * price_in
+        + cache_write * price_in * 1.25
+        + cache_read * price_in * 0.10
+        + usage.output_tokens * price_out
+    ) / 1_000_000
+    return {
+        "model": model,
+        "input_tokens": usage.input_tokens,
+        "output_tokens": usage.output_tokens,
+        "cache_write_tokens": cache_write,
+        "cache_read_tokens": cache_read,
+        "cost_usd": round(cost_usd, 6),
+    }
+
+
 _client: anthropic.Anthropic | None = None
 
 
@@ -204,14 +240,18 @@ def fallback_filters(query: str) -> SearchFilters:
     )
 
 
-def enrich_specimen(specimen: dict) -> Enrichment:
-    """Generate retrieval-only aliases for one specimen. Raises on API failure."""
+def enrich_specimen(specimen: dict, model: str | None = None) -> Enrichment:
+    """Generate retrieval-only aliases for one specimen. Raises on API failure.
+
+    `model` overrides ENRICH_MODEL -- used to sample-compare models on a subset
+    before committing the full (expensive) pass to one of them.
+    """
     catalog_fields = "\n".join(
         f"{key}: {value}" for key, value in specimen.items() if key != "id"
     )
 
     response = get_client().messages.parse(
-        model=ENRICH_MODEL,
+        model=model or ENRICH_MODEL,
         max_tokens=4096,
         system=ENRICH_SYSTEM,
         messages=[{"role": "user", "content": catalog_fields}],

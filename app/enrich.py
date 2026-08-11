@@ -1,7 +1,17 @@
 """Offline enrichment pass. Run before serving:
 
-    python -m app.enrich                 # enrich every new/changed record
+    python -m app.enrich                 # enrich every new/changed record (default model)
     python -m app.enrich --limit 200     # a random sample -- check quality before the full run
+
+Compare models before committing the full (expensive) pass. Send each model's
+sample to its own scratch file so they don't collide in the real enriched.json,
+then read the files side by side:
+
+    python -m app.enrich --limit 200 --model claude-haiku-4-5 --out app/data/enriched-haiku.json
+    python -m app.enrich --limit 200 --model claude-sonnet-5  --out app/data/enriched-sonnet.json
+    python -m app.enrich --limit 200 --model claude-opus-4-8  --out app/data/enriched-opus.json
+
+(app/data/enriched-*.json is gitignored; the real enriched.json is not.)
 
 Reads the specimen snapshot (app/specimens.load_specimens -- the Specify snapshot
 if present, else the demo list), asks Claude for search aliases per specimen, and
@@ -37,7 +47,7 @@ from pathlib import Path
 
 import anthropic
 
-from app.ai import enrich_specimen
+from app.ai import ENRICH_MODEL, enrich_specimen
 from app.specimens import load_specimens
 
 DATA_DIR = Path(__file__).parent / "data"
@@ -67,22 +77,31 @@ def content_hash(specimen: dict) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def load_enriched() -> dict[str, dict]:
+def load_enriched(path: Path) -> dict[str, dict]:
     """Existing enrichments, keyed by stringified specimen id (JSON has no int keys)."""
-    if not ENRICHED_PATH.exists():
+    if not path.exists():
         return {}
-    return json.loads(ENRICHED_PATH.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Enrich specimen records with Claude.")
     ap.add_argument("--limit", type=int,
                     help="enrich a random sample of this many new/changed records (quality check)")
+    ap.add_argument("--model",
+                    help=f"model to enrich with (default {ENRICH_MODEL}); "
+                         f"e.g. claude-haiku-4-5, claude-sonnet-5")
+    ap.add_argument("--out",
+                    help="output file (default app/data/enriched.json). Point comparison "
+                         "runs at a scratch file so they don't touch the real one.")
     args = ap.parse_args()
+
+    model = args.model or ENRICH_MODEL
+    out_path = Path(args.out) if args.out else ENRICHED_PATH
 
     DATA_DIR.mkdir(exist_ok=True)
     specimens = load_specimens()
-    enriched = load_enriched()
+    enriched = load_enriched(out_path)
 
     # Re-enrich when new (no cache entry) or changed (content hash differs from
     # what we enriched against last time). Unchanged records are skipped for free.
@@ -97,6 +116,7 @@ def main() -> None:
 
     new = sum(1 for s in todo if str(s["id"]) not in enriched)
     changed = len(todo) - new
+    print(f"model: {model}   ->  {out_path}")
     print(f"{len(todo)} specimen(s) need enriching -- {new} new, {changed} changed "
           f"-- with {len(enriched)} cached.")
 
@@ -119,7 +139,7 @@ def main() -> None:
             or f"id {specimen['id']}"
         )
         try:
-            result = enrich_specimen(specimen)
+            result = enrich_specimen(specimen, model=model)
         except anthropic.BadRequestError as exc:
             # 400 means the request itself is unacceptable -- a bad schema, or an
             # account that can't be billed. Every remaining specimen sends the
@@ -139,6 +159,7 @@ def main() -> None:
 
         record = result.model_dump()
         record["_content_hash"] = content_hash(specimen)  # so we can detect edits next run
+        record["_model"] = model                          # provenance: which model wrote this
         enriched[str(specimen["id"])] = record
 
         aliases = ", ".join((result.abbreviations + result.common_names)[:3])
@@ -146,10 +167,10 @@ def main() -> None:
 
         # Write after every specimen. An interrupted run keeps its progress and
         # the next run resumes rather than re-paying for what already succeeded.
-        ENRICHED_PATH.write_text(json.dumps(enriched, indent=2), encoding="utf-8")
+        out_path.write_text(json.dumps(enriched, indent=2), encoding="utf-8")
 
     if enriched:
-        print(f"\nWrote {len(enriched)} enrichments to {ENRICHED_PATH}")
+        print(f"\nWrote {len(enriched)} enrichments to {out_path}")
     else:
         # The write only happens after a successful call, so claiming we "wrote 0"
         # to a file that was never created is a lie the next reader will chase.

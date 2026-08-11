@@ -6,7 +6,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from app.ai import SearchFilters, fallback_filters, parse_search_query
+from app.ai import (
+    QUERY_MODEL,
+    SearchFilters,
+    fallback_filters,
+    parse_search_query_with_usage,
+    usage_cost,
+)
 from app.orders import detect_orders
 from app.search import SearchIndex
 from app.suggest import build_suggestions
@@ -57,7 +63,16 @@ def ai_search(req: SearchRequest):
     if not query:
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
 
-    filters, degraded_reason = _parse_or_degrade(query)
+    filters, degraded_reason, cost = _parse_or_degrade(query)
+
+    # One line per billed search -- the running-cost record now that the Claude
+    # call lives here, not in the Node server. `cost` is None on a degraded search
+    # (the parse call failed before we got usage), which is not the same as $0.
+    if cost:
+        log.info(
+            "[ai-search] %s %d in / %d out = $%.6f -- %r",
+            cost["model"], cost["input_tokens"], cost["output_tokens"], cost["cost_usd"], query,
+        )
 
     # Detected from the raw query by a local dictionary, not Claude -- so "beetles"
     # narrows to Coleoptera even in degraded mode / with no credits. Runs on the
@@ -81,11 +96,18 @@ def ai_search(req: SearchRequest):
         # silently got unfiltered results deserves to know why.
         "degraded": degraded_reason is not None,
         "degraded_reason": degraded_reason,
+        # Per-search list-price cost of the query-parse call, or null when no call
+        # was billed (degraded). The Node proxy passes this through to the UI.
+        "cost": cost,
     }
 
 
-def _parse_or_degrade(query: str) -> tuple[SearchFilters, str | None]:
+def _parse_or_degrade(query: str) -> tuple[SearchFilters, str | None, dict | None]:
     """Parse the query with Claude, or fall back to semantic-only search.
+
+    Returns (filters, degraded_reason, cost). `cost` is the per-search cost record
+    on success and None on any degrade -- the parse call failed before returning
+    usage, so there's no billed figure to report (which is not the same as $0).
 
     No Claude failure returns an error to the visitor. Structured filters are an
     enhancement; the index and scoring are local and keep working without them.
@@ -100,30 +122,31 @@ def _parse_or_degrade(query: str) -> tuple[SearchFilters, str | None]:
     them would swallow all three.
     """
     try:
-        return parse_search_query(query), None
+        filters, usage = parse_search_query_with_usage(query)
+        return filters, None, usage_cost(usage, QUERY_MODEL)
 
     except anthropic.AuthenticationError:
         log.error("ANTHROPIC_API_KEY is missing or invalid -- serving degraded results")
-        return fallback_filters(query), "auth_error"
+        return fallback_filters(query), "auth_error", None
 
     except anthropic.BadRequestError as exc:
         # Bad schema, or an account that can't be billed. Not transient.
         log.error("Claude rejected the request -- serving degraded results: %s", exc.message)
-        return fallback_filters(query), "bad_request"
+        return fallback_filters(query), "bad_request", None
 
     except anthropic.RateLimitError:
         log.warning("Rate limited by the Claude API -- serving degraded results")
-        return fallback_filters(query), "rate_limited"
+        return fallback_filters(query), "rate_limited", None
 
     except anthropic.APIConnectionError:
         log.warning("Could not reach the Claude API -- serving degraded results")
-        return fallback_filters(query), "unreachable"
+        return fallback_filters(query), "unreachable", None
 
     except anthropic.APIStatusError as exc:
         log.error("Claude API error %s -- serving degraded results: %s", exc.status_code, exc.message)
-        return fallback_filters(query), "api_error"
+        return fallback_filters(query), "api_error", None
 
     except RuntimeError:
         # parse_search_query raises this on stop_reason == "refusal".
         log.warning("Claude declined to parse the query -- serving degraded results")
-        return fallback_filters(query), "refused"
+        return fallback_filters(query), "refused", None
