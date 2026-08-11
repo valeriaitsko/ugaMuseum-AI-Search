@@ -136,11 +136,13 @@ DEMO_SPECIMENS = [
 # Kingdom = Literal[...] in app/ai.py to match, or the parser will emit kingdom
 # values that filter out every record. The Literal is a compile-time constant;
 # there's no way around editing it by hand when the vocabulary changes.
-KINGDOMS = ["Plantae"]
+KINGDOMS = ["Plantae", "Animalia"]
 
 # Not a catalog field. Assigned during enrichment because visitors search for
-# "fossils" and "dinosaurs", which are not kingdoms.
-CATEGORIES = ["plant", "animal", "mineral", "fossil"]
+# "fossils", "dinosaurs", and "insects" -- groupings that aren't kingdoms.
+# 'insect' is a subset of Animalia, split out because this collection is almost
+# entirely insects and visitors think "bugs", not "animals".
+CATEGORIES = ["plant", "animal", "insect", "mineral", "fossil"]
 
 
 def load_specimens() -> list[dict]:

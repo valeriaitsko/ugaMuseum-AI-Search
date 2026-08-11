@@ -14,7 +14,7 @@ deploy time.
     Specify DB  ->  flatten  ->  data/specimens.json  ->  enrich / index / search
 
 Record shape (exactly these keys, values null when absent):
-    {id, catalogNumber, altCatalogNumber, kingdom, family, genus, species, locality}
+    {id, catalogNumber, altCatalogNumber, kingdom, order, family, genus, species, locality}
 
 WHERE EACH FIELD COMES FROM
   id / catalogNumber / altCatalogNumber   directly on CollectionObject.
@@ -59,6 +59,7 @@ OUT_PATH = Path(__file__).parent / "data" / "specimens.json"
 # not by tree position), which is exactly what excludes the RankID-0 root.
 ROOT_RANK = 0
 KINGDOM_RANK = 10
+ORDER_RANK = 100   # confirmed against this DB: rank 100 holds Coleoptera, Diptera, ...
 FAMILY_RANK = 140
 GENUS_RANK = 180
 SPECIES_RANK = 220
@@ -159,6 +160,7 @@ def flatten(rows: list[dict], taxa: dict[int, dict], limit: int | None):
                 "catalogNumber": _clean(row["catalogNumber"]),
                 "altCatalogNumber": _clean(row["altCatalogNumber"]),
                 "kingdom": ranks.get(KINGDOM_RANK),
+                "order": ranks.get(ORDER_RANK),
                 "family": ranks.get(FAMILY_RANK),
                 "genus": ranks.get(GENUS_RANK),
                 "species": ranks.get(SPECIES_RANK),

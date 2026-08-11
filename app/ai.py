@@ -43,10 +43,11 @@ def get_client() -> anthropic.Anthropic:
     return _client
 
 # Must stay in sync with specimens.KINGDOMS (which reflects what the snapshot
-# actually holds). This is a herbarium snapshot -- Plantae only. If build_snapshot
-# reports a new kingdom, add it in both places or the parser can never emit it.
-Kingdom = Literal["Plantae"]
-Category = Literal["plant", "animal", "mineral", "fossil"]
+# actually holds). Now a mixed snapshot -- Plantae (herbarium) + Animalia (insects).
+# If build_snapshot reports a new kingdom, add it in both places or the parser can
+# never emit it.
+Kingdom = Literal["Plantae", "Animalia"]
+Category = Literal["plant", "animal", "insect", "mineral", "fossil"]
 
 
 class SearchFilters(BaseModel):
@@ -105,8 +106,11 @@ a wrong filter silently hides correct results, which is worse than no filter.
 The catalog stores kingdom as exactly one of: {", ".join(KINGDOMS)}.
 The catalog groups specimens into: {", ".join(CATEGORIES)}.
 
-Extinct organisms known from fossils are category 'fossil', not 'animal', even though
-their kingdom is Animalia. That is how visitors think about them.
+Category reflects how a visitor groups things, which is not always the kingdom:
+- Insects and other arthropods (beetles, flies, butterflies, bees, spiders) are
+  category 'insect', not 'animal', even though their kingdom is Animalia.
+- Extinct organisms known from fossils are category 'fossil', not 'animal'.
+- 'animal' is for vertebrates and other non-insect, non-fossil animals.
 
 semantic_query should capture intent, not keywords. For "big scary dinosaur" write
 "large predatory dinosaur", not "big scary dinosaur"."""
@@ -142,7 +146,13 @@ Rules, in order of importance:
    Omit locality, collector, institution, and expedition entirely. Those are matched by
    exact filters elsewhere; embedding them only dilutes the vector.
 
-Good:  "Tyrannosaurus rex, T. rex. Large carnivorous predatory theropod dinosaur fossil."
+6. Set category by how a visitor groups the specimen, not strictly by kingdom:
+   - insects and other arthropods (beetles, flies, butterflies, bees, spiders) -> 'insect'
+   - extinct organisms known from fossils -> 'fossil'
+   - other animals (vertebrates, etc.) -> 'animal';  plants -> 'plant';  minerals -> 'mineral'
+
+Good (dinosaur): "Tyrannosaurus rex, T. rex. Large carnivorous predatory theropod dinosaur fossil."
+Good (insect):   "Brachypalpus oarus, a hoverfly / flower fly. Bee-mimic pollinating fly, family Syrphidae."
 Bad:   "Tyrannosaurus rex, commonly called T. rex, is a large carnivorous theropod
         dinosaur. Family Tyrannosauridae. Large theropod fossil from South Dakota." """
 
