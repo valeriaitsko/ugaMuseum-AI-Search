@@ -93,18 +93,18 @@ def run_model(model: str, index: SearchIndex, cases: list[dict]) -> ModelReport:
 
         report.input_tokens += usage.input_tokens
         report.output_tokens += usage.output_tokens
-        report.parsed[query] = {f: getattr(filters, f) for f in ALL_FIELDS}
+        report.parsed[query] = {f: getattr(filters, f, None) for f in ALL_FIELDS}
 
         for name, expected in case["expect"].items():
             report.expected_total += 1
-            if field_matches(name, expected, getattr(filters, name)):
+            if field_matches(name, expected, getattr(filters, name, None)):
                 report.expected_hit += 1
             else:
-                got = getattr(filters, name)
+                got = getattr(filters, name, None)
                 report.misses.append(f"{query!r}: {name} expected {expected!r}, got {got!r}")
 
         for name in case["forbid"]:
-            got = getattr(filters, name)
+            got = getattr(filters, name, None)
             if got is not None:
                 report.hallucinations.append(f"{query!r}: invented {name}={got!r}")
 

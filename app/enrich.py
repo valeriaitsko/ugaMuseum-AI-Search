@@ -63,6 +63,32 @@ ENRICHED_PATH = DATA_DIR / "enriched.json"
 ENRICHED_FIELDS = ("kingdom", "order", "family", "genus", "species", "locality")
 
 
+# Retries specimens the primary model's safety classifier refuses. Opus is
+# stricter on bio-adjacent names (crop pests like Spodoptera frugiperda, the fall
+# armyworm) than Sonnet, which enriches them fine -- so a refusal costs a cheap
+# retry instead of a missing record. Only if the fallback ALSO refuses is a
+# specimen skipped.
+FALLBACK_MODEL = "claude-sonnet-5"
+
+
+def enrich_or_fallback(specimen: dict, primary: str, fallback: str | None):
+    """Enrich with `primary`; on a refusal, retry once with `fallback`.
+
+    Returns (Enrichment, model_used). Re-raises RuntimeError only if BOTH models
+    refuse (or there's no fallback). Transient API errors (rate limit, network,
+    400) propagate unchanged, so the caller's existing handlers deal with them.
+    """
+    try:
+        return enrich_specimen(specimen, model=primary), primary
+    except RuntimeError:
+        if not fallback or fallback == primary:
+            raise  # no fallback available -> caller records the refusal
+        # Primary declined; the fallback model is less conservative on the
+        # species names that trip the classifier. If it too refuses, its
+        # RuntimeError propagates and the caller skips the specimen.
+        return enrich_specimen(specimen, model=fallback), fallback
+
+
 def content_hash(specimen: dict) -> str:
     """Fingerprint of the fields that feed enrichment.
 
@@ -94,9 +120,13 @@ def main() -> None:
     ap.add_argument("--out",
                     help="output file (default app/data/enriched.json). Point comparison "
                          "runs at a scratch file so they don't touch the real one.")
+    ap.add_argument("--fallback", default=FALLBACK_MODEL,
+                    help=f"model to retry safety-refused specimens on (default "
+                         f"{FALLBACK_MODEL}); pass 'none' to disable")
     args = ap.parse_args()
 
     model = args.model or ENRICH_MODEL
+    fallback_model = None if args.fallback.strip().lower() in ("none", "") else args.fallback
     out_path = Path(args.out) if args.out else ENRICHED_PATH
 
     DATA_DIR.mkdir(exist_ok=True)
@@ -116,7 +146,7 @@ def main() -> None:
 
     new = sum(1 for s in todo if str(s["id"]) not in enriched)
     changed = len(todo) - new
-    print(f"model: {model}   ->  {out_path}")
+    print(f"model: {model}   fallback: {fallback_model or 'none'}   ->  {out_path}")
     print(f"{len(todo)} specimen(s) need enriching -- {new} new, {changed} changed "
           f"-- with {len(enriched)} cached.")
 
@@ -128,6 +158,8 @@ def main() -> None:
               f"Run again without --limit to finish the rest.")
     print()
 
+    refused = 0
+    fell_back = 0
     for specimen in todo:
         # A short human label for progress output. The flattened record has no
         # scientificName -- build one from genus + species, falling back to a
@@ -139,7 +171,7 @@ def main() -> None:
             or f"id {specimen['id']}"
         )
         try:
-            result = enrich_specimen(specimen, model=model)
+            result, used_model = enrich_or_fallback(specimen, model, fallback_model)
         except anthropic.BadRequestError as exc:
             # 400 means the request itself is unacceptable -- a bad schema, or an
             # account that can't be billed. Every remaining specimen sends the
@@ -156,19 +188,37 @@ def main() -> None:
         except anthropic.APIConnectionError:
             print(f"  [{specimen['id']:>2}] {label}: network error -- skipped")
             continue
+        except RuntimeError:
+            # A refusal that enrich_or_fallback couldn't rescue -- BOTH the primary
+            # and fallback safety classifiers declined this specimen (a crop-pest
+            # name like Spodoptera frugiperda, the fall armyworm). A per-specimen
+            # event, not an account problem: skip and continue rather than crash a
+            # 31k run. The record stays findable by its Latin name, just un-enriched.
+            print(f"  [{specimen['id']:>2}] {label}: declined by {model} and fallback -- skipped")
+            refused += 1
+            continue
 
         record = result.model_dump()
         record["_content_hash"] = content_hash(specimen)  # so we can detect edits next run
-        record["_model"] = model                          # provenance: which model wrote this
+        record["_model"] = used_model                     # provenance: model that actually wrote it
         enriched[str(specimen["id"])] = record
 
+        note = f"  (via fallback {used_model})" if used_model != model else ""
+        if note:
+            fell_back += 1
         aliases = ", ".join((result.abbreviations + result.common_names)[:3])
-        print(f"  [{specimen['id']:>2}] {label:<24} {result.category:<8} {aliases}")
+        print(f"  [{specimen['id']:>2}] {label:<24} {result.category:<8} {aliases}{note}")
 
         # Write after every specimen. An interrupted run keeps its progress and
         # the next run resumes rather than re-paying for what already succeeded.
         out_path.write_text(json.dumps(enriched, indent=2), encoding="utf-8")
 
+    if fell_back:
+        print(f"\n{fell_back} specimen(s) refused by {model} were rescued by the "
+              f"fallback ({fallback_model}).")
+    if refused:
+        print(f"\n{refused} specimen(s) were declined by BOTH models and skipped "
+              f"(findable by Latin name, just un-enriched).")
     if enriched:
         print(f"\nWrote {len(enriched)} enrichments to {out_path}")
     else:

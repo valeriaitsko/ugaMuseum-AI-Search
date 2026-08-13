@@ -19,3 +19,7 @@ app/data/specimens.json.tmp
 # Per-model comparison samples (python -m app.enrich --model X --out ...). Scratch
 # quality checks, not production data -- keep them out of the repo.
 app/data/enriched-*.json
+
+# Eval run output (python -m evals.run --json ...). A point-in-time result, not
+# source -- regenerate with a run.
+evals/last-run.json
