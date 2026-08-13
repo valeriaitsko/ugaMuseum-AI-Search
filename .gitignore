@@ -23,3 +23,8 @@ app/data/enriched-*.json
 # Eval run output (python -m evals.run --json ...). A point-in-time result, not
 # source -- regenerate with a run.
 evals/last-run.json
+
+# In-flight Batches API job state (python -m app.enrich_batch submit/collect).
+# Holds the live batch id between submit and collect; deleted when the run finishes.
+# Ephemeral coordination, not source.
+app/data/enrich_batch_state.json
