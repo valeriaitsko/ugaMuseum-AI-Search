@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from typing import Literal
 
 import anthropic
@@ -19,7 +20,43 @@ from app.suggest import build_suggestions
 
 log = logging.getLogger(__name__)
 
-app = FastAPI(title="Museum AI Search")
+# Built once at import: loads enrichments, encodes vectors (cached on disk).
+# Doing this per request would re-encode the whole collection every search.
+index = SearchIndex()
+
+
+def _warm_query_encoder() -> None:
+    """Load the query-encoder model at boot instead of on the first search.
+
+    SearchIndex() above loads the *vector cache*, but on a cache hit it never
+    calls the encoder -- so the MiniLM model that embeds the visitor's query text
+    stays unloaded until the first real search, whose one-time ~minute cold load
+    overruns the frontend proxy's request timeout and surfaces as "backend timed
+    out". Encoding one throwaway query here pays that cost at startup, where
+    nothing is on a clock, so the first visitor search returns in seconds.
+
+    Best-effort: a failure here just restores the old lazy behaviour (a slow
+    first search), so it must never stop the server from booting.
+    """
+    if not (index.semantic and index.vectors is not None):
+        return
+    try:
+        from app import embeddings
+
+        embeddings.similarities("warm up the query encoder", index.vectors)
+        log.info("[startup] query encoder warmed")
+    except Exception:
+        log.warning("[startup] query-encoder warm-up failed; first search will be slow",
+                    exc_info=True)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    _warm_query_encoder()
+    yield
+
+
+app = FastAPI(title="Museum AI Search", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,10 +70,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Built once at import: loads enrichments, encodes vectors (cached on disk).
-# Doing this per request would re-encode the whole collection every search.
-index = SearchIndex()
 
 
 class SearchRequest(BaseModel):
