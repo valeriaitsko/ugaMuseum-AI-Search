@@ -105,19 +105,20 @@ class SearchIndex:
             return {}
         return json.loads(ENRICHED_PATH.read_text(encoding="utf-8"))
 
-    def _search_text(self, specimen: dict) -> str:
-        """The enriched paragraph if we have one; otherwise the bare catalog row.
+    # Display-only taxonomy fields kept OUT of the embedded fallback text: they're
+    # Latin rank words no visitor types into the semantic box, and excluding them
+    # leaves the embedded text -- and thus the cached vectors -- byte-identical to
+    # before these fields existed, so adding order/phylum/class forces no re-encode.
+    _NON_EMBEDDED_FIELDS = ("id", "order", "phylum", "class")
 
-        'order' is excluded: it's a Latin word no visitor types into the semantic
-        box (it's reached through the deterministic order filter instead), and
-        keeping it out leaves the embedded text -- and thus the cached vectors --
-        byte-identical to before the field existed, so adding order forces no
-        re-encode.
-        """
+    def _search_text(self, specimen: dict) -> str:
+        """The enriched paragraph if we have one; otherwise the bare catalog row."""
         enrichment = self.enrichments.get(str(specimen["id"]))
         if enrichment:
             return enrichment["search_text"]
-        return " ".join(str(v) for k, v in specimen.items() if k not in ("id", "order") and v)
+        return " ".join(
+            str(v) for k, v in specimen.items() if k not in self._NON_EMBEDDED_FIELDS and v
+        )
 
     def _category(self, specimen: dict) -> str | None:
         enrichment = self.enrichments.get(str(specimen["id"]))

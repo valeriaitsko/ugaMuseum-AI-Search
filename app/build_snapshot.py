@@ -59,6 +59,9 @@ OUT_PATH = Path(__file__).parent / "data" / "specimens.json"
 # not by tree position), which is exactly what excludes the RankID-0 root.
 ROOT_RANK = 0
 KINGDOM_RANK = 10
+PHYLUM_RANK = 30    # Phylum for animals; Division for plants -- same rankid, so the
+CLASS_RANK = 60     # "phylum" field holds a plant's Division. Both may be null if the
+                    # tree skips the rank or a specimen isn't identified that deep.
 ORDER_RANK = 100   # confirmed against this DB: rank 100 holds Coleoptera, Diptera, ...
 FAMILY_RANK = 140
 GENUS_RANK = 180
@@ -160,6 +163,8 @@ def flatten(rows: list[dict], taxa: dict[int, dict], limit: int | None):
                 "catalogNumber": _clean(row["catalogNumber"]),
                 "altCatalogNumber": _clean(row["altCatalogNumber"]),
                 "kingdom": ranks.get(KINGDOM_RANK),
+                "phylum": ranks.get(PHYLUM_RANK),
+                "class": ranks.get(CLASS_RANK),
                 "order": ranks.get(ORDER_RANK),
                 "family": ranks.get(FAMILY_RANK),
                 "genus": ranks.get(GENUS_RANK),
