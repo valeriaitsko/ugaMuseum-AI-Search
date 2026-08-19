@@ -17,6 +17,7 @@ from app.ai import (
 from app.orders import detect_orders
 from app.search import SearchIndex
 from app.suggest import build_suggestions
+from app.summarize import summarize_results
 
 log = logging.getLogger(__name__)
 
@@ -80,6 +81,17 @@ class SearchRequest(BaseModel):
     audience: Literal["student", "researcher"] = "student"
 
 
+class SummaryRequest(BaseModel):
+    # The specimen ids currently shown -- the summary is grounded in exactly these,
+    # looked up in the in-memory index (no re-search, no re-parse). Sending ids
+    # rather than whole records keeps the payload tiny and the stats authoritative.
+    ids: list[int]
+    audience: Literal["student", "researcher"] = "student"
+    # The original query, for phrasing context only ("your search for ..."). Never
+    # a source of facts -- those come from the specimens the ids resolve to.
+    query: str = ""
+
+
 @app.get("/")
 def root():
     return {
@@ -133,6 +145,32 @@ def ai_search(req: SearchRequest):
         # was billed (degraded). The Node proxy passes this through to the UI.
         "cost": cost,
     }
+
+
+@app.post("/api/ai-summary")
+def ai_summary(req: SummaryRequest):
+    """On-demand, audience-aware summary of the results the visitor is looking at.
+
+    Grounded in the specimens the ids resolve to (looked up locally); Claude only
+    phrases the locally-computed stats. Unknown ids are dropped rather than erroring
+    -- a stale id shouldn't sink the whole summary.
+    """
+    specimens = [
+        index.specimens[index.position[i]] for i in req.ids if i in index.position
+    ]
+    if not specimens:
+        raise HTTPException(status_code=400, detail="No known specimens to summarize.")
+
+    result = summarize_results(index, specimens, req.audience, req.query.strip())
+
+    cost = result.get("cost")
+    if cost:
+        log.info(
+            "[ai-summary] %s %d in / %d out = $%.6f -- %d specimens, %s",
+            cost["model"], cost["input_tokens"], cost["output_tokens"],
+            cost["cost_usd"], len(specimens), req.audience,
+        )
+    return result
 
 
 def _parse_or_degrade(query: str) -> tuple[SearchFilters, str | None, dict | None]:
