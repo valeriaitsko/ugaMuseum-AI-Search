@@ -67,6 +67,15 @@ def compute_stats(index: "SearchIndex", specimens: list[dict]) -> dict:
         b for s in specimens
         if (b := _dedup_binomial(_f(s, "genus"), _f(s, "species"))) and _f(s, "species")
     )
+    # Museum's own common name per species, from enrichment -- so Claude phrases
+    # "eastern tiger swallowtail" (the catalog's name) instead of guessing one from
+    # the scientific name. Retrieval aliases, so keep the first (most canonical).
+    common: dict[str, str] = {}
+    for s in specimens:
+        binomial = _dedup_binomial(_f(s, "genus"), _f(s, "species"))
+        enrichment = index.enrichments.get(str(s["id"]))
+        if binomial and binomial not in common and enrichment and enrichment.get("common_names"):
+            common[binomial] = enrichment["common_names"][0]
     return {
         "total": len(specimens),
         "categories": categories,
@@ -74,6 +83,7 @@ def compute_stats(index: "SearchIndex", specimens: list[dict]) -> dict:
         "genera": genera,
         "localities": localities,
         "species": species,
+        "common_names": common,
         "num_localities": len(localities),
     }
 
@@ -95,7 +105,15 @@ def _format_facts(stats: dict, query: str) -> str:
     if stats["genera"]:
         lines.append(f"Genera: {_fmt_counter(stats['genera'])}")
     if stats["species"]:
-        lines.append(f"Species: {_fmt_counter(stats['species'])}")
+        # Pair each species with its catalog common name (when known) and count, so
+        # Claude uses the museum's name rather than inventing one: "Papilio glaucus
+        # (eastern tiger swallowtail, 5)".
+        common = stats.get("common_names", {})
+        parts = []
+        for sp, count in stats["species"].most_common(_TOP_N):
+            name = common.get(sp)
+            parts.append(f"{sp} ({name}, {count})" if name else f"{sp} ({count})")
+        lines.append("Species: " + ", ".join(parts))
     if stats["localities"]:
         lines.append(f"Localities ({stats['num_localities']}): {_fmt_counter(stats['localities'])}")
     return "\n".join(lines)
@@ -106,6 +124,8 @@ SUMMARY_SYSTEM = {
         "You write a short, friendly summary of museum search results for a curious kid or "
         "young student. Two or three short sentences, warm and simple, everyday words. Use ONLY "
         "the facts you are given -- never invent a species, place, or number that is not listed. "
+        "When you name a creature, use the common name given in parentheses for its species; if "
+        "none is given, use the scientific name rather than guessing a common one. "
         "End by inviting them to tap or click a card to see its full name and where it was found. "
         "At most one emoji. Just a little paragraph -- no headings, no lists."
     ),
@@ -114,7 +134,9 @@ SUMMARY_SYSTEM = {
         "Two to four sentences, neutral and informative. Bring out the distribution: how many "
         "specimens, across how many localities (name the notable ones with counts), and the "
         "dominant taxa with counts. Use ONLY the facts you are given -- never invent a taxon, "
-        "place, or number that is not listed. No second person, no emoji, no lists -- plain prose."
+        "place, or number that is not listed; use the common name given in parentheses for a "
+        "species when you name one, else its scientific name. "
+        "No second person, no emoji, no lists -- plain prose."
     ),
 }
 
