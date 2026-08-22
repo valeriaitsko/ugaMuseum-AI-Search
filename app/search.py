@@ -105,11 +105,13 @@ class SearchIndex:
             return {}
         return json.loads(ENRICHED_PATH.read_text(encoding="utf-8"))
 
-    # Display-only taxonomy fields kept OUT of the embedded fallback text: they're
-    # Latin rank words no visitor types into the semantic box, and excluding them
-    # leaves the embedded text -- and thus the cached vectors -- byte-identical to
-    # before these fields existed, so adding order/phylum/class forces no re-encode.
-    _NON_EMBEDDED_FIELDS = ("id", "order", "phylum", "class")
+    # Fields kept OUT of the embedded fallback text. `order`/`phylum`/`class` are
+    # Latin rank words no visitor types, and excluding them keeps the cached vectors
+    # byte-identical (no re-encode). `discipline` is an internal biology/archaeology
+    # flag, not search content. The archaeology ranks (culturalPeriod/points/
+    # specimen) are deliberately NOT here -- "Dalton", "Archaic Period" etc. are
+    # exactly what a visitor would search an artifact by.
+    _NON_EMBEDDED_FIELDS = ("id", "discipline", "order", "phylum", "class")
 
     def _search_text(self, specimen: dict) -> str:
         """The enriched paragraph if we have one; otherwise the bare catalog row."""

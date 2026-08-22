@@ -55,17 +55,24 @@ DB_PASSWORD = os.getenv("SPECIFY_DB_PASSWORD", "")
 
 OUT_PATH = Path(__file__).parent / "data" / "specimens.json"
 
-# Specify's default taxon-tree rankids. We read taxonomy by RankID (not by name,
-# not by tree position), which is exactly what excludes the RankID-0 root.
+# Taxonomy is read by rank NAME, not RankID, because this database holds multiple
+# taxon trees that REUSE the same RankIDs for different ranks: rank 10 is "Kingdom"
+# in the biology tree but "Points" in the archaeology tree; rank 30 is "Phylum" vs
+# "Specimen". Keying by the (unambiguous) rank name lets one flatten pass handle
+# both disciplines. Only the RankID-0 root (named "Life"/"Root") is dropped by id.
 ROOT_RANK = 0
-KINGDOM_RANK = 10
-PHYLUM_RANK = 30    # Phylum for animals; Division for plants -- same rankid, so the
-CLASS_RANK = 60     # "phylum" field holds a plant's Division. Both may be null if the
-                    # tree skips the rank or a specimen isn't identified that deep.
-ORDER_RANK = 100   # confirmed against this DB: rank 100 holds Coleoptera, Diptera, ...
-FAMILY_RANK = 140
-GENUS_RANK = 180
-SPECIES_RANK = 220
+
+# rank name in the tree -> field in the flattened record. Biology is the Linnaean
+# hierarchy; archaeology is Cultural Period -> Points -> Specimen (projectile-point
+# typology: a named point type like "Dalton", grouped by base/notch form, within a
+# time period). A record fills exactly one of these two sets.
+BIOLOGY_RANKS = {
+    "Kingdom": "kingdom", "Phylum": "phylum", "Class": "class", "Order": "order",
+    "Family": "family", "Genus": "genus", "Species": "species",
+}
+ARCHAEOLOGY_RANKS = {
+    "Cultural Period": "culturalPeriod", "Points": "points", "Specimen": "specimen",
+}
 
 
 def connect() -> "pymysql.connections.Connection":
@@ -83,29 +90,37 @@ def connect() -> "pymysql.connections.Connection":
 
 
 def load_taxa(cur) -> dict[int, dict]:
-    """The whole taxon tree in memory, keyed by TaxonID. The table is small and
-    every specimen walks it, so one bulk read beats a recursive query per record."""
-    cur.execute("SELECT TaxonID, Name, RankID, ParentID FROM taxon")
+    """The whole taxon tree in memory, keyed by TaxonID, each node carrying its rank
+    NAME (joined from taxontreedefitem) so we can tell "Kingdom" from "Points" even
+    though both are RankID 10 in different trees. One bulk read; every specimen
+    walks it, so this beats a recursive query per record."""
+    cur.execute(
+        """
+        SELECT t.TaxonID, t.Name, t.RankID, t.ParentID, tdi.Name AS rankName
+        FROM taxon t
+        LEFT JOIN taxontreedefitem tdi ON tdi.TaxonTreeDefItemID = t.TaxonTreeDefItemID
+        """
+    )
     return {row["TaxonID"]: row for row in cur.fetchall()}
 
 
-def ranks_for(taxon_id: int | None, taxa: dict[int, dict]) -> dict[int, str]:
-    """Walk a taxon up its parents, returning {rankid: name}, nearest node per
-    rank, excluding the RankID-0 root ("Uploaded"). {} when taxon_id is missing.
+def ranks_for(taxon_id: int | None, taxa: dict[int, dict]) -> dict[str, str]:
+    """Walk a taxon up its parents, returning {rank name: taxon name}, nearest node
+    per rank, excluding the RankID-0 root. {} when taxon_id is missing.
 
     A `seen` set guards against a malformed parent cycle looping forever.
     """
-    ranks: dict[int, str] = {}
+    ranks: dict[str, str] = {}
     seen: set[int] = set()
     tid = taxon_id
     while tid is not None and tid in taxa and tid not in seen:
         seen.add(tid)
         node = taxa[tid]
-        rid = node["RankID"]
-        if rid is not None and rid != ROOT_RANK:
+        rank = (node["rankName"] or "").strip()
+        if node["RankID"] != ROOT_RANK and rank:
             name = (node["Name"] or "").strip()
-            if rid not in ranks and name:
-                ranks[rid] = name
+            if rank not in ranks and name:
+                ranks[rank] = name
         tid = node["ParentID"]
     return ranks
 
@@ -157,18 +172,25 @@ def flatten(rows: list[dict], taxa: dict[int, dict], limit: int | None):
             no_current_det += 1
         ranks = ranks_for(row["taxonId"], taxa)
 
+        bio = {field: ranks.get(rank) for rank, field in BIOLOGY_RANKS.items()}
+        arch = {field: ranks.get(rank) for rank, field in ARCHAEOLOGY_RANKS.items()}
+        # Which tree the record's taxonomy came from -- the one clean signal the
+        # frontend uses to decide how to label it (a point type, not an insect).
+        if any(arch.values()):
+            discipline = "archaeology"
+        elif any(bio.values()):
+            discipline = "biology"
+        else:
+            discipline = None
+
         specimens.append(
             {
                 "id": cid,
                 "catalogNumber": _clean(row["catalogNumber"]),
                 "altCatalogNumber": _clean(row["altCatalogNumber"]),
-                "kingdom": ranks.get(KINGDOM_RANK),
-                "phylum": ranks.get(PHYLUM_RANK),
-                "class": ranks.get(CLASS_RANK),
-                "order": ranks.get(ORDER_RANK),
-                "family": ranks.get(FAMILY_RANK),
-                "genus": ranks.get(GENUS_RANK),
-                "species": ranks.get(SPECIES_RANK),
+                "discipline": discipline,
+                **bio,
+                **arch,
                 "locality": _clean(row["locality"]),
             }
         )
@@ -203,10 +225,14 @@ def build(limit: int | None, dry_run: bool) -> None:
 def _report(specimens: list[dict], no_current_det: int) -> None:
     """Surface the two things most likely to be silently wrong after a build:
     records with no taxonomy, and kingdoms the query parser can't emit."""
+    from collections import Counter
+
     from app.specimens import KINGDOMS
 
+    disciplines = Counter(s.get("discipline") or "(unidentified)" for s in specimens)
     kingdoms = sorted({s["kingdom"] for s in specimens if s["kingdom"]})
     print(f"built {len(specimens)} specimen(s); {no_current_det} had no current determination (taxonomy null)")
+    print(f"disciplines: {dict(disciplines)}")
     print(f"kingdoms observed: {kingdoms}")
     unknown = [k for k in kingdoms if k not in KINGDOMS]
     if unknown:
