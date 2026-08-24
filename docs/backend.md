@@ -11,8 +11,9 @@ top-to-bottom by someone who has never seen the code.
 
 - **Stack:** Python 3, FastAPI, Pydantic, the Anthropic SDK (Claude),
   `sentence-transformers` (MiniLM embeddings), NumPy, PyMySQL.
-- **Scale:** ~31,800 specimens in the current snapshot (a UGA insect collection,
-  plus a herbarium slice).
+- **Scale:** ~31,840 specimens in the current snapshot — a UGA insect collection,
+  a herbarium slice, and a small archaeology collection (projectile points) that
+  carries its own taxonomy (see §2).
 - **Entry point:** `app/main.py` (the HTTP API). Everything else is a module it
   composes.
 
@@ -70,21 +71,32 @@ Specify 7 and flattens each `CollectionObject` into a lean record.
    returns identifiers, the current determination's `TaxonID`, and a locality
    name.
 3. `ranks_for()` walks each specimen's taxon **up the tree by `ParentID`**,
-   collecting `{rankid: name}`. Taxonomy is selected **by RankID, never by name
-   or tree position** — kingdom=10, order=100, family=140, genus=180,
-   species=220. This is what excludes the tree root (RankID 0, named "Uploaded"
-   in this DB — a WorkBench import artifact, not a real rank). A `seen` set
-   guards against a malformed parent cycle.
-4. `flatten()` emits exactly these keys, with `null` where absent:
-   `{id, catalogNumber, altCatalogNumber, kingdom, order, family, genus,
-   species, locality}`.
+   collecting `{rank name: name}`. Taxonomy is read **by rank NAME, not RankID** —
+   because this database holds **two taxon trees that reuse the same RankIDs**: a
+   biology tree and an archaeology tree where rank 10 means "Points" (not
+   "Kingdom") and rank 30 means "Specimen" (not "Phylum"). Reading by name (joined
+   from `taxontreedefitem`) keeps them straight; reading by id would slot a stone
+   point's typology into the `kingdom` field. The RankID-0 root ("Life"/"Root") is
+   still dropped, and a `seen` set guards against a malformed parent cycle.
+4. `flatten()` emits a unified record (with `null` where absent), tagged with the
+   `discipline` its taxonomy came from so downstream can label it correctly:
+   - **always:** `{id, catalogNumber, altCatalogNumber, discipline, locality}`
+   - **biology** (`discipline: "biology"`): `kingdom, phylum, class, order, family,
+     genus, species`
+   - **archaeology** (`discipline: "archaeology"`): `culturalPeriod, points,
+     specimen` — e.g. *Late Paleo Indian Period → Incurvate Base Points → Dalton*
+
+   Every record carries all fields; only its discipline's set is filled. `phylum`
+   and `class` are display-only — excluded from the search embedding, so adding
+   them forced no re-encode (see §4).
 5. `_write_atomic()` writes to a temp file then renames, so a crash mid-write
    can't corrupt the snapshot the running server reads.
 
 Records with **no current determination** get null taxonomy — we deliberately do
 *not* fall back to a superseded identification. `_report()` prints how many that
-was, plus any observed kingdom that the query parser isn't configured to emit
-(see §6, the `KINGDOMS` sync requirement).
+was, a breakdown by **discipline** (biology / archaeology), and any observed
+kingdom the query parser isn't configured to emit (see §6, the `KINGDOMS` sync
+requirement).
 
 ```bash
 python -m app.build_snapshot --dry-run   # build + print first record, write nothing
@@ -251,8 +263,12 @@ vector away from what the specimen *is*. Measured on this collection:
 That's why locality and collector are kept out of the embedded text — they're
 already matched exactly by structured filters, so embedding them only costs
 ranking quality. And it's why `_search_text()` in `search.py` also excludes
-`order`: keeping it out leaves the embedded text byte-identical to before the
-field existed, so adding `order` forces no re-encode.
+`order`, `phylum`, `class`, and the internal `discipline` flag
+(`_NON_EMBEDDED_FIELDS`): they're Latin rank words no visitor types into the
+semantic box, and keeping them out leaves the embedded text byte-identical to
+before those fields existed, so adding them forces no re-encode. (The archaeology
+ranks — `culturalPeriod`/`points`/`specimen` — are *not* excluded: "Dalton" and
+"Woodland Period" are exactly what a visitor would search an artifact by.)
 
 ### Graceful degradation
 
@@ -266,6 +282,54 @@ back to **lexical matching over the enriched text** instead of crashing.
 
 This is the hot path. `POST /api/ai-search` with `{query, audience}`. Here's what
 happens, in order.
+
+### In plain English — one search, start to finish
+
+Imagine a visitor types **"beetles from Georgia."** Here's the whole journey,
+without the jargon:
+
+1. **Two readers look at the query at the same time.**
+   - A plain **dictionary** (no AI) spots the word "beetles" and knows that means
+     the *beetle order*, Coleoptera. Cheap, instant, and works even if the AI is
+     down.
+   - A small, fast **AI model** reads the sentence and fills in a little form:
+     *this is an insect, collected in Georgia, and in plain words they want "beetles
+     from Georgia."* It only fills a box when the query truly supports it — a wrong
+     guess would hide good results.
+
+2. **The collection is narrowed to the sure things.** Anything that definitely
+   doesn't fit is thrown out before scoring even starts — ask for beetles and every
+   non-beetle is gone. (These strict "hard" filters are kingdom, category, and
+   order.)
+
+3. **What's left gets scored.** Each surviving beetle earns points for (a) matching
+   a specific thing you named — its family, genus, species, or locality — and (b)
+   how close its *description* is in meaning to what you asked. That second part is
+   what can match "beetles" to a record that never uses that exact word. Being
+   specific (a named family *and* place) is tuned to beat a vague meaning-match.
+
+4. **The top 10 come back,** each tagged with *why* it ranked — e.g. "matched on
+   order, locality~Georgia, similarity 0.48" — so the ranking is never a black box.
+   Only the museum's own catalog facts go out; the AI-written search words are used
+   to rank, then dropped.
+
+5. **Alongside the results** the visitor also gets a one-tap plain-English
+   **summary**, a few **related-search chips**, and — importantly — an **honest note
+   if part of their query matched nothing.**
+
+**When you ask for something that isn't there.** Say you search **"plants from
+Georgia,"** but the herbarium is entirely Californian — there are *no* Georgia
+plants. Rather than quietly hand back California plants as if they were Georgian,
+the search does two things:
+
+- **It tells you:** *"No results are actually from Georgia — showing related results
+  from elsewhere."*
+- **It cleans up the ranking:** it drops the dead word "Georgia" from the
+  meaning-match (that word only adds noise, because a specimen's location isn't part
+  of its "what it is" description), so you get a representative spread of the plants
+  that *do* exist instead of a lopsided clump of one genus.
+
+The detailed, mechanical version of each step follows.
 
 ### 5.0 The index is built once, at import
 
@@ -344,8 +408,12 @@ similarity.
 **a. Hard filters exclude (`_passes_hard_filters`).** `kingdom`, `category`, and
 detected `orders` *remove* non-matches rather than down-ranking them — asking for
 minerals and getting a wolf at rank 4 is worse than getting fewer results.
-Un-enriched specimens (no category) aren't excluded on a field we never computed.
-Free-text fields stay soft.
+Un-enriched specimens have no enrichment `category`, so one is **derived from their
+taxonomy** (`_fallback_category`: an `Insecta` record → `insect`, `Plantae` →
+`plant`). Without that, a pest species both models refused to enrich had `category
+= None`, slipped past a `category=plant` filter, and — being from Georgia — falsely
+satisfied the locality filter, polluting a plants search. Free-text fields stay
+soft.
 
 **b. Field scores boost (`_field_score`).** Weighted matches on the remaining
 candidates:
@@ -365,10 +433,22 @@ conceptual hit** — someone specific should beat someone vague.
 plural "s") at a deliberately low weight (`0.75`/word) — lexical is the fallback,
 not the plan.
 
-**d. Filter, sort, cap.** Anything scoring ≤ 0 is dropped; the rest sort by score
+**d. Honest about filters that matched nothing.** A soft filter only *boosts*, never
+excludes — so if the query named a `family`/`genus`/`species`/`locality` that **no
+candidate matches**, the search would otherwise return unrelated records as if they
+fit. `search()` detects this and returns an **`unmatched_filters`** list, so the UI
+can say *"nothing is from Georgia — showing related results"* instead of implying a
+match. And because **locality is absent from the embeddings** (§4), an unmatched
+locality is *stripped from `semantic_query` before ranking* (`_strip_locality`):
+leaving it in only drags the query vector toward noise — `"plants collected in
+Georgia"` once clustered every result on a single genus, while `"plants"` ranks a
+representative spread. Taxonomic terms are *kept* even when unmatched, since a genus
+name like "Papilio" still helps find relatives semantically.
+
+**e. Filter, sort, cap.** Anything scoring ≤ 0 is dropped; the rest sort by score
 descending; the top 10 are returned.
 
-**e. Only the museum's own fields go out.** Each result is
+**f. Only the museum's own fields go out.** Each result is
 `{**specimen, score, matched_on}` — the original catalog record plus a score and
 a `matched_on` trace (e.g. `["genus=Papilio", "similarity=0.42"]`). **The
 model-generated enrichment is never in the response** — returning a generated
@@ -403,6 +483,8 @@ in degraded mode, since it reads results and facets, never Claude. (Full design:
   "detected_orders": ["Coleoptera"],
   "results": [ /* museum fields + score + matched_on */ ],
   "suggestions": [ /* up to 4 grounded chips */ ],
+  "unmatched_filters": [ /* soft filters the query named that matched nothing, */
+                        /* e.g. {"field":"locality","value":"Georgia"} */ ],
   "degraded": false,
   "degraded_reason": null,
   "cost": { "model": "...", "input_tokens": N, "output_tokens": N, "cost_usd": 0.00... }
