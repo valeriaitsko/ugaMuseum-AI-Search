@@ -51,6 +51,57 @@ def _contains_word(haystack: str, needle: str) -> bool:
     return re.search(rf"\b{re.escape(needle.lower())}\b", haystack.lower()) is not None
 
 
+# The filters that BOOST rather than exclude (see _field_score). When one of these
+# is asked for but matches nothing, the search silently returns unrelated records --
+# so search() reports them to the caller as "unmatched" for an honest UI hint.
+SOFT_FILTER_FIELDS = ("family", "genus", "species", "locality")
+
+
+def _fallback_category(specimen: dict) -> str | None:
+    """A visitor-facing category derived from taxonomy, for records enrichment
+    never labelled. Mirrors ENRICH_SYSTEM's rule: arthropods -> 'insect', other
+    animals -> 'animal', plants -> 'plant'. Uses the `class` rank (Insecta) rather
+    than a hand-list of orders, and returns None when there's nothing to go on
+    (archaeology and unidentified records), leaving them out of category filtering.
+    """
+    kingdom = (specimen.get("kingdom") or "").strip().lower()
+    if kingdom == "plantae":
+        return "plant"
+    if kingdom == "animalia":
+        klass = (specimen.get("class") or "").strip().lower()
+        return "insect" if klass == "insecta" else "animal"
+    return None
+
+
+def _matches_soft(specimen: dict, filters: SearchFilters, field: str) -> bool:
+    """Does this specimen satisfy soft filter `field`? Exact (case-insensitive) for
+    taxa, substring for locality -- mirrors _field_score's scoring rules exactly."""
+    value = getattr(filters, field, None)
+    record = specimen.get(field)
+    if not value or not record:
+        return False
+    if field == "locality":
+        return value.lower() in record.lower()
+    return record.lower() == value.lower()
+
+
+def _strip_locality(semantic_query: str, locality: str) -> str:
+    """Drop an unmatched locality (and any leading preposition) from the fuzzy query.
+
+    Locality is deliberately absent from the specimen embeddings (see embeddings.py
+    §4), so a locality word the collection can't satisfy only pushes the query vector
+    toward noise -- "plants collected in Georgia" clustered spuriously on one genus,
+    while "plants" ranks a representative spread. Never returns empty, which would
+    disable the semantic half of the search entirely.
+    """
+    loc = re.escape(locality)
+    q = re.sub(rf"\b(from|in|at|near|around|of|collected\s+in)\s+{loc}\b", " ",
+               semantic_query, flags=re.IGNORECASE)
+    q = re.sub(rf"\b{loc}\b", " ", q, flags=re.IGNORECASE)
+    q = re.sub(r"\s+", " ", q).strip(" ,.")
+    return q or semantic_query
+
+
 class SearchIndex:
     """Loads enrichments once at startup and, if possible, embeds them."""
 
@@ -123,8 +174,20 @@ class SearchIndex:
         )
 
     def _category(self, specimen: dict) -> str | None:
+        """A specimen's visitor-facing category. Enrichment supplies it normally;
+        for an un-enriched record we derive one from taxonomy so it still filters.
+
+        Without this, an un-enriched record (e.g. a pest species both models refused
+        to enrich) has category None, and _passes_hard_filters deliberately does NOT
+        exclude on None -- so a category=plant search would keep a Georgia moth,
+        which then falsely satisfies the locality filter and pollutes the results.
+        A derived category ("insect" for an Insecta record) lets the filter exclude
+        it just like an enriched one.
+        """
         enrichment = self.enrichments.get(str(specimen["id"]))
-        return enrichment["category"] if enrichment else None
+        if enrichment:
+            return enrichment["category"]
+        return _fallback_category(specimen)
 
     def _passes_hard_filters(
         self, specimen: dict, filters: SearchFilters, orders: list[str] | None = None
@@ -199,13 +262,35 @@ class SearchIndex:
 
     def search(
         self, filters: SearchFilters, orders: list[str] | None = None, limit: int = 10
-    ) -> list[dict]:
+    ) -> tuple[list[dict], list[dict]]:
+        """Rank specimens for the query. Returns (results, unmatched_filters).
+
+        `unmatched_filters` is [{"field", "value"}] for each soft filter the query
+        asked for that NO candidate actually matched -- so the caller can tell the
+        visitor "nothing is from Georgia, showing related results" rather than let
+        the results imply a match. An unmatched *locality* is additionally stripped
+        from the fuzzy query before ranking (see _strip_locality): it's not in the
+        embeddings, so leaving it in only distorts the ranking.
+        """
         candidates = [s for s in self.specimens if self._passes_hard_filters(s, filters, orders)]
         if not candidates:
-            return []
+            return [], []
+
+        unmatched = [
+            {"field": f, "value": getattr(filters, f)}
+            for f in SOFT_FILTER_FIELDS
+            if getattr(filters, f, None)
+            and not any(_matches_soft(s, filters, f) for s in candidates)
+        ]
+
+        # An unmatched locality is pure noise in the fuzzy vector (locality isn't
+        # embedded), so drop it for a cleaner, more representative ranking.
+        semantic_query = filters.semantic_query
+        if filters.locality and any(u["field"] == "locality" for u in unmatched):
+            semantic_query = _strip_locality(semantic_query, filters.locality)
 
         if self.semantic and self.vectors is not None:
-            all_scores = embeddings.similarities(filters.semantic_query, self.vectors)
+            all_scores = embeddings.similarities(semantic_query, self.vectors)
         else:
             all_scores = None
 
@@ -219,7 +304,7 @@ class SearchIndex:
                 score += SEMANTIC_WEIGHT * similarity
                 matched.append(f"similarity={similarity:.2f}")
             else:
-                score += self._lexical_score(self.search_texts[position], filters.semantic_query)
+                score += self._lexical_score(self.search_texts[position], semantic_query)
 
             if score <= 0:
                 continue
@@ -230,4 +315,4 @@ class SearchIndex:
             results.append({**specimen, "score": round(score, 2), "matched_on": matched})
 
         results.sort(key=lambda r: r["score"], reverse=True)
-        return results[:limit]
+        return results[:limit], unmatched

@@ -110,7 +110,7 @@ def run_model(model: str, index: SearchIndex, cases: list[dict]) -> ModelReport:
 
         if case["top1"] is not None:
             report.top1_total += 1
-            results = index.search(filters)
+            results, _ = index.search(filters)
             actual = results[0]["id"] if results else None
             if actual == case["top1"]:
                 report.top1_hit += 1

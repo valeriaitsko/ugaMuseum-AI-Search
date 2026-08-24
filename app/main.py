@@ -124,7 +124,7 @@ def ai_search(req: SearchRequest):
     # original query, not filters.semantic_query, which Claude may have reworded.
     orders = detect_orders(query)
 
-    results = index.search(filters, orders=orders)
+    results, unmatched_filters = index.search(filters, orders=orders)
 
     # Grounded, validated, and computed from local facets -- no extra Claude call,
     # and it still works when the parse degraded (it reads results, not filters).
@@ -135,6 +135,11 @@ def ai_search(req: SearchRequest):
         "ai_parsed_query": filters.model_dump(),
         "detected_orders": orders,
         "results": results,
+        # Soft filters the query asked for that matched nothing (e.g. "Georgia" when
+        # the collection has no Georgia plants). The UI tells the visitor rather than
+        # letting the semantically-related results imply a match. An unmatched
+        # locality was also dropped from the fuzzy ranking (see search.py).
+        "unmatched_filters": unmatched_filters,
         "suggestions": suggestions,
         # True when Claude was unreachable and the filters are empty. The frontend
         # should say so -- a visitor who searched "collected by Emily Davis" and
