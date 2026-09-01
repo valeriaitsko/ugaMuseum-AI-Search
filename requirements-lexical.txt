@@ -1,0 +1,17 @@
+# Lexical-only dependencies: the same as requirements.txt WITHOUT
+# sentence-transformers (and therefore without torch, ~2.5 GB). The app detects the
+# missing library at startup (embeddings.available -> False) and falls back to
+# whole-word matching over the enriched text -- so it fits a 512 MB free tier.
+# Everything else is identical: query parsing, filters, order detection, the
+# unmatched-filter hints, summaries, suggestions, archaeology.
+#
+# Use this (with Dockerfile.lexical) only for a free/small host. For the full
+# semantic search, use requirements.txt + Dockerfile.
+anthropic>=0.116
+fastapi>=0.115
+uvicorn>=0.32
+python-dotenv>=1.0
+pydantic>=2.9
+numpy>=1.26
+requests>=2.32
+pymysql>=1.1
