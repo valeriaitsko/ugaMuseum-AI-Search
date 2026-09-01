@@ -1,0 +1,16 @@
+# Render blueprint: deploys the FastAPI search backend as a Docker web service.
+# On render.com -> New -> Blueprint -> connect this repo, and Render reads this.
+services:
+  - type: web
+    name: museum-ai-search
+    runtime: docker
+    # 2 GB RAM. The 512 MB tiers (free/starter) cannot hold PyTorch +
+    # sentence-transformers + the 31k vectors -- the service would OOM on boot.
+    plan: standard
+    healthCheckPath: /
+    # The root endpoint returns {"specimens": N, "semantic_search": true} once the
+    # index is loaded, so a passing health check means search is actually ready.
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        # Set the value as a secret in the Render dashboard -- never commit a key.
+        sync: false
