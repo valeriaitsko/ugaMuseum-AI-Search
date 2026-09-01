@@ -1,9 +1,10 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 from typing import Literal
 
 import anthropic
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -73,6 +74,20 @@ app.add_middleware(
 )
 
 
+# Optional shared secret for a hosted deploy. When PROXY_SECRET is set, the billed
+# endpoints require a matching `X-Proxy-Secret` header -- so a public backend URL
+# (e.g. a Hugging Face Space) can't be hit directly to burn the API key; only our
+# Express proxy, handed the same secret, gets through. Unset (local dev) => no
+# guard, so nothing changes when you run it on your own machine. The health check
+# at `/` stays open (it leaks nothing) so hosts can probe readiness.
+PROXY_SECRET = os.environ.get("PROXY_SECRET")
+
+
+def require_proxy_secret(x_proxy_secret: str | None = Header(default=None)) -> None:
+    if PROXY_SECRET and x_proxy_secret != PROXY_SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized.")
+
+
 class SearchRequest(BaseModel):
     query: str
     # Drives the "You might also be interested in" suggestions: students get
@@ -102,7 +117,7 @@ def root():
     }
 
 
-@app.post("/api/ai-search")
+@app.post("/api/ai-search", dependencies=[Depends(require_proxy_secret)])
 def ai_search(req: SearchRequest):
     query = req.query.strip()
     if not query:
@@ -152,7 +167,7 @@ def ai_search(req: SearchRequest):
     }
 
 
-@app.post("/api/ai-summary")
+@app.post("/api/ai-summary", dependencies=[Depends(require_proxy_secret)])
 def ai_summary(req: SummaryRequest):
     """On-demand, audience-aware summary of the results the visitor is looking at.
 

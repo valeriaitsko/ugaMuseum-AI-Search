@@ -24,7 +24,8 @@ RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTr
 # minutes) -- see DEPLOY.md to commit it and make boots fast.
 COPY app ./app
 
-# Hosts inject $PORT; bind 0.0.0.0 so the service is reachable. main.py loads the
-# index and warms the query encoder at startup, so the first real search is quick.
-ENV PORT=8001
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8001}"]
+# Bind 0.0.0.0 so the service is reachable. Default port 7860 is what Hugging Face
+# Spaces routes to (declared as `app_port` in the Space README); Render and Railway
+# inject their own $PORT, which overrides it. main.py loads the index and warms the
+# query encoder at startup, so the first real search is quick.
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]
